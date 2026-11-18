@@ -11,6 +11,7 @@
   .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.1);margin-top:14px;}
   label{display:block;font-weight:bold;margin-top:10px;font-size:13px;}
   input,select{width:100%;padding:10px;box-sizing:border-box;margin-top:4px;font-size:15px;border:1px solid #ccc;border-radius:4px;}
+  input[readonly]{background:#f0f0f0;}
   button{margin-top:14px;padding:12px 16px;background:#1a5fb4;color:#fff;border:none;border-radius:4px;width:100%;font-size:15px;cursor:pointer;}
   button.secondary{background:#777;}
   button.small{width:auto;padding:6px 10px;margin-top:0;font-size:13px;}
@@ -21,28 +22,25 @@
   .msgbox.err{background:#fdeaea;border:1px solid #e57373;}
   #loginError{color:#c62828;font-size:13px;margin-top:8px;display:none;}
   .hidden{display:none !important;}
-
-  /* Tabs */
   .tabbar{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;}
   .tabbtn{flex:1 1 45%;padding:9px 4px;text-align:center;background:#fff;border:1px solid #ccc;border-radius:6px;cursor:pointer;font-weight:bold;font-size:12px;color:#555;}
   .tabbtn.active{background:#1a5fb4;color:#fff;border-color:#1a5fb4;}
-
-  /* Detail item table (Buat Dokumen) */
   table{width:100%;border-collapse:collapse;margin-top:8px;}
-  th,td{border:1px solid #ddd;padding:6px;font-size:12px;}
+  th,td{border:1px solid #ddd;padding:4px;font-size:12px;}
   th{background:#f0f0f0;}
-  td input{margin-top:0;padding:6px;font-size:13px;}
+  td input,td select{margin-top:0;padding:6px;font-size:13px;}
   .row2{display:flex;gap:8px;}
-  .row2 > div{flex:1;}
-
-  /* Tracking info box */
+  .row2 > div{flex:1;min-width:0;}
   .infobox{background:#e3f2fd;padding:10px;border-radius:6px;font-size:14px;}
   .infobox b{display:inline-block;min-width:110px;}
-
-  /* Barcode result */
+  .actions{display:flex;gap:8px;}
+  .actions button{flex:1;padding:14px 4px;}
+  .btnKirim{background:#1a5fb4;} .btnTerima{background:#2e7d32;} .btnRevisi{background:#e65100;}
+  .totalbar{text-align:right;font-weight:bold;margin-top:8px;font-size:15px;}
+  .ttdbox{display:flex;gap:6px;margin-top:8px;}
+  .ttdbox div{flex:1;border:1px solid #ccc;border-radius:4px;padding:6px;font-size:11px;text-align:center;min-height:60px;background:#fafafa;}
   #barcodeResult{text-align:center;}
   #barcodeResult img{width:220px;height:220px;}
-
   @media print {
     body *{ visibility:hidden; }
     #bcPrintArea, #bcPrintArea *{ visibility:visible; }
@@ -54,11 +52,9 @@
 
   <h2>e-Ekspedisi Dokumen</h2>
 
-  <!-- ============ SETUP: isi URL Web App Apps Script kamu di sini ============ -->
   <script>
     var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxlRu7uSzro4f9E6SOFJnkLaOkam2Z_2hAwlJcpArgPAme08BmZB_mjilRHzGKuAoO0MQ/exec';
   </script>
-  <!-- =========================================================================== -->
 
   <!-- LOGIN -->
   <div class="card" id="loginCard">
@@ -70,7 +66,6 @@
     <div id="loginError"></div>
   </div>
 
-  <!-- KONTEN SETELAH LOGIN -->
   <div id="mainArea" class="hidden">
     <div class="card" style="margin-top:0;">
       <div id="userInfo"></div>
@@ -84,74 +79,109 @@
       <div class="tabbtn" id="tabBtnTrack" onclick="switchTab('track')">🔍 Lacak Dokumen</div>
     </div>
 
-    <!-- ============ TAB: SCAN EKSPEDISI ============ -->
+    <!-- ============ SCAN EKSPEDISI ============ -->
     <div class="card" id="scanTab">
-      <label>Aksi</label>
-      <select id="aksi">
-        <option value="Kirim">Kirim ke unit lain</option>
-        <option value="Terima">Terima di unit saya</option>
-      </select>
-
-      <label>Arahkan kamera ke barcode dokumen</label>
+      <label>Scan barcode atau ketik No Dokumen</label>
       <div id="reader"></div>
-      <input type="text" id="noDokumen" placeholder="Akan terisi otomatis saat barcode terdeteksi">
+      <input type="text" id="noDokumen" placeholder="Terisi otomatis saat barcode terdeteksi, atau ketik manual">
 
       <label>Keterangan (opsional)</label>
       <input type="text" id="keterangan">
 
-      <button onclick="submitScan()">Catat Serah Terima</button>
+      <label>Pilih aksi</label>
+      <div class="actions">
+        <button class="btnKirim" onclick="submitScan('Kirim')">📤 Kirim</button>
+        <button class="btnTerima" onclick="submitScan('Terima')">📥 Terima</button>
+        <button class="btnRevisi" onclick="submitScan('Revisi')">✏️ Revisi</button>
+      </div>
       <div id="msg" class="msgbox"></div>
     </div>
 
-    <!-- ============ TAB: BUAT DOKUMEN (LENGKAP) ============ -->
+    <!-- ============ BUAT DOKUMEN ============ -->
     <div class="card hidden" id="formTab">
-      <div class="row2">
-        <div>
-          <label>Bank</label>
-          <input type="text" id="f_bank">
-        </div>
-        <div>
-          <label>Tanggal</label>
-          <input type="date" id="f_date">
-        </div>
+      <label style="margin-top:0;">Jenis Dokumen</label>
+      <select id="f_jenis" onchange="onJenisChange()">
+        <option value="Uang Muka">Uang Muka</option>
+        <option value="PJK">PJK</option>
+        <option value="Kas Kecil">Kas Kecil</option>
+        <option value="PPL">PPL</option>
+      </select>
+
+      <!-- PJK: pilih Uang Muka -->
+      <div id="pjkPick" class="hidden">
+        <label>Nomor Uang Muka</label>
+        <select id="f_noUM" onchange="fillFromUM()"><option value="">-- pilih Nomor Uang Muka --</option></select>
       </div>
 
-      <div class="row2">
-        <div>
-          <label>No Rekening</label>
-          <input type="text" id="f_noRekening">
+      <!-- Uang Muka / PPL / PJK -->
+      <div id="umFields">
+        <div class="row2">
+          <div><label>IDGL</label><div style="height:42px;"></div></div>
+          <div><label>Account ID</label>
+            <select id="f_accountId">
+              <option>Bank Mandiri</option><option>BSI</option><option>Kas Besar</option><option>BNI</option>
+            </select></div>
         </div>
-        <div>
-          <label>Nama Penerima</label>
-          <input type="text" id="f_namaPenerima">
+        <div class="row2">
+          <div><label>Date</label><input type="date" id="f_date"></div>
+          <div><label>Responsible</label><input type="text" id="f_responsible"></div>
         </div>
+        <div class="row2">
+          <div><label>Partner</label><input type="text" id="f_partner"></div>
+          <div><label>Hal</label><input type="text" id="f_hal"></div>
+        </div>
+
+        <div id="pjkExtra" class="hidden">
+          <div class="row2">
+            <div><label>Tanggal PJK</label><input type="date" id="f_tglPjk"></div>
+            <div><label>Total Uang Muka</label><input type="text" id="f_totalUM" readonly></div>
+          </div>
+          <label>Keterangan PJK</label>
+          <input type="text" id="f_ketPjk">
+        </div>
+
+        <label id="umDetailLabel" style="margin-top:16px;">Detail Item</label>
+        <table id="umTable">
+          <tr><th>Account</th><th>Keterangan</th><th>Total</th><th></th></tr>
+        </table>
+        <button type="button" class="small secondary" style="margin-top:8px;" onclick="addUMRow()">+ Tambah Baris</button>
+        <div class="totalbar">Total: <span id="umTotal">Rp 0</span></div>
+
+        <label>Tanda Tangan (otomatis sesuai total)</label>
+        <div class="ttdbox" id="ttdPreview"></div>
       </div>
 
-      <div class="row2">
-        <div>
-          <label>Partner</label>
-          <input type="text" id="f_partner">
+      <!-- Kas Kecil -->
+      <div id="kkFields" class="hidden">
+        <div class="row2">
+          <div><label>IDGL</label><div style="height:42px;"></div></div>
+          <div><label>Date</label><input type="date" id="k_date"></div>
         </div>
-        <div>
-          <label>Responsible</label>
-          <input type="text" id="f_responsible">
+        <div class="row2">
+          <div><label>Nama Kas Kecil</label>
+            <select id="k_nama">
+              <option>Kas Kecil Keperawatan</option><option>Kas Kecil SDM</option><option>Kas Kecil Pelayanan Umum</option>
+              <option>Kas Kecil IGD</option><option>Kas Kecil Pengadaan</option><option>Kas Kecil Dapur</option>
+              <option>Kas Kecil Laboratorium</option><option>Kas Kecil Sistem Informasi</option><option>Kas Kecil Home Care</option>
+              <option>Kas Kecil Farmasi Rawat Jalan</option><option>Kas Kecil Farmasi Rawat Inap</option><option>Kas Kecil Pemasaran</option>
+            </select></div>
+          <div><label>Company</label><input type="text" id="k_company" value="PT. Cipta Nirmala" readonly></div>
         </div>
+        <div class="row2">
+          <div><label>Created By</label><input type="text" id="k_createdBy"></div>
+          <div></div>
+        </div>
+
+        <label style="margin-top:16px;">Rincian</label>
+        <table id="kkTable">
+          <tr><th>Deskripsi</th><th>Qty</th><th>Unit Price</th><th>Tax (PPN)</th><th>Amount</th><th></th></tr>
+        </table>
+        <button type="button" class="small secondary" style="margin-top:8px;" onclick="addKKRow()">+ Tambah Baris</button>
+        <div class="totalbar">Total: <span id="kkTotal">Rp 0</span></div>
+
+        <label>Tanda Tangan</label>
+        <div class="ttdbox"><div><b>Created By</b><br><br><span id="kkTtdName"></span></div></div>
       </div>
-
-      <label>Unit Asal (unit yang membuat dokumen ini)</label>
-      <select id="f_unit"></select>
-
-      <label>PJ (Penanggung Jawab / Unit Peminta)</label>
-      <input type="text" id="f_pj">
-
-      <label>Approval (Manajer Keuangan)</label>
-      <input type="text" id="f_approval2">
-
-      <label style="margin-top:16px;">Detail Item</label>
-      <table id="detailTable">
-        <tr><th>Account</th><th>Keterangan</th><th>Total</th><th></th></tr>
-      </table>
-      <button type="button" class="small secondary" onclick="addRow()">+ Tambah Baris</button>
 
       <button type="button" onclick="submitDokumen()">Simpan &amp; Buat Dokumen</button>
       <div id="formMsg" class="msgbox"></div>
@@ -164,19 +194,15 @@
       </div>
     </div>
 
-    <!-- ============ TAB: GENERATE BARCODE CEPAT ============ -->
+    <!-- ============ BARCODE CEPAT ============ -->
     <div class="card hidden" id="barcodeTab">
       <p style="font-size:13px;color:#666;margin-top:0;">Untuk dokumen yang tidak perlu detail lengkap — cukup nomor & judul, langsung dapat barcode siap tempel/cetak.</p>
-
       <label>No Dokumen (opsional — kosongkan untuk nomor otomatis)</label>
       <input type="text" id="bc_noDokumen" placeholder="Kosongkan untuk otomatis, mis. DOC-20260813-0001">
-
       <label>Judul / Keterangan Dokumen</label>
       <input type="text" id="bc_judul" placeholder="mis. Kontrak Sewa Gedung A">
-
       <button type="button" onclick="generateBarcode()">Generate Barcode</button>
       <div id="barcodeMsg" class="msgbox"></div>
-
       <div class="hidden" id="barcodeResult" style="margin-top:16px;">
         <div id="bcPrintArea">
           <img id="bcQrImg" src="">
@@ -188,20 +214,18 @@
       </div>
     </div>
 
-    <!-- ============ TAB: LACAK DOKUMEN ============ -->
+    <!-- ============ LACAK ============ -->
     <div class="card hidden" id="trackTab">
       <label>No Dokumen</label>
       <input type="text" id="tr_noDokumen" placeholder="Ketik atau tempel No Dokumen">
       <button type="button" onclick="trackDokumen()">Lacak</button>
       <div id="trackMsg" class="msgbox"></div>
-
       <div class="hidden" id="trackResult" style="margin-top:14px;">
         <div class="infobox">
           <div><b>Judul/Nama:</b> <span id="tr_judul"></span></div>
           <div><b>Status saat ini:</b> <span id="tr_status"></span></div>
           <div><b>Lokasi saat ini:</b> <span id="tr_lokasi"></span></div>
         </div>
-
         <label style="margin-top:14px;">Riwayat Perjalanan (unit &amp; waktu)</label>
         <table>
           <tr><th>Waktu</th><th>Unit</th><th>Aksi</th><th>PIC</th><th>Ket.</th></tr>
@@ -212,295 +236,322 @@
   </div>
 
 <script>
-  var currentUser = null;
-  var html5QrCode = null;
-  var printUrl = '';
-  var unitsLoaded = false;
+  var currentUser = null, html5QrCode = null, printUrl = '', umList = [];
+  var BATAS = 50000000;
+  var TTD_MANAJER = 'Trisilawati Handayani, S.E';
+  var TTD_DIREKTUR = 'Nanik Indriani, S.E, M.M';
+  var TTD_DIRUT = 'dr. Tawang Arief Nugroho';
+
+  function $(id) { return document.getElementById(id); }
+  function rp(n) { return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
   function callApi(action, payload) {
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: action, payload: payload || {} })
     }).then(function (res) { return res.json(); });
   }
 
   // ---------- LOGIN / LOGOUT ----------
   function login() {
-    var username = document.getElementById('username').value.trim();
-    var password = document.getElementById('password').value;
-    var errEl = document.getElementById('loginError');
+    var username = $('username').value.trim(), password = $('password').value, errEl = $('loginError');
     errEl.style.display = 'none';
-
     if (!username || !password) return;
-
-    callApi('login', { username: username, password: password })
-      .then(function (res) {
-        if (!res.success) {
-          errEl.textContent = res.message;
-          errEl.style.display = 'block';
-          return;
-        }
-        currentUser = res;
-        localStorage.setItem('ekspedisi_user', JSON.stringify(res));
-        showMain();
-      })
-      .catch(function (err) {
-        errEl.textContent = 'Gagal terhubung ke server: ' + err.message;
-        errEl.style.display = 'block';
-      });
+    callApi('login', { username: username, password: password }).then(function (res) {
+      if (!res.success) { errEl.textContent = res.message; errEl.style.display = 'block'; return; }
+      currentUser = res;
+      localStorage.setItem('ekspedisi_user', JSON.stringify(res));
+      showMain();
+    }).catch(function (err) {
+      errEl.textContent = 'Gagal terhubung ke server: ' + err.message; errEl.style.display = 'block';
+    });
   }
 
   function logout() {
     localStorage.removeItem('ekspedisi_user');
     currentUser = null;
-    if (html5QrCode) { html5QrCode.stop().catch(function () {}); }
-    document.getElementById('mainArea').classList.add('hidden');
-    document.getElementById('loginCard').classList.remove('hidden');
+    if (html5QrCode) { html5QrCode.stop().catch(function () {}); html5QrCode = null; }
+    $('mainArea').classList.add('hidden');
+    $('loginCard').classList.remove('hidden');
   }
 
   function showMain() {
-    document.getElementById('loginCard').classList.add('hidden');
-    document.getElementById('mainArea').classList.remove('hidden');
-    document.getElementById('userInfo').textContent =
-      'Login sebagai: ' + currentUser.pic + ' (' + currentUser.namaUnit + ')';
+    $('loginCard').classList.add('hidden');
+    $('mainArea').classList.remove('hidden');
+    $('userInfo').textContent = 'Login sebagai: ' + currentUser.pic + ' (' + currentUser.namaUnit + ')';
+    $('k_createdBy').value = currentUser.pic;
     startScanner();
-    loadUnitsIntoForm();
+    onJenisChange();
   }
 
   // ---------- TABS ----------
   function switchTab(name) {
-    var tabs = ['scan', 'form', 'barcode', 'track'];
     var labels = { scan: 'Scan', form: 'Form', barcode: 'Barcode', track: 'Track' };
-    tabs.forEach(function (t) {
-      document.getElementById(t + 'Tab').classList.toggle('hidden', t !== name);
-      document.getElementById('tabBtn' + labels[t]).classList.toggle('active', t === name);
+    Object.keys(labels).forEach(function (t) {
+      $(t + 'Tab').classList.toggle('hidden', t !== name);
+      $('tabBtn' + labels[t]).classList.toggle('active', t === name);
     });
     if (name === 'scan' && !html5QrCode) startScanner();
   }
 
-  // ---------- SCAN EKSPEDISI ----------
+  // ---------- SCAN / KLIK EKSPEDISI ----------
   function startScanner() {
     if (html5QrCode) return;
     html5QrCode = new Html5Qrcode('reader');
-    html5QrCode.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: 220 },
-      function (decodedText) {
-        document.getElementById('noDokumen').value = decodedText;
-        if (navigator.vibrate) navigator.vibrate(150);
-      }
-    ).catch(function (err) {
-      showMsg('msg', 'Kamera tidak dapat diakses: ' + err, false);
-    });
+    html5QrCode.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, function (t) {
+      $('noDokumen').value = t;
+      if (navigator.vibrate) navigator.vibrate(150);
+    }).catch(function (err) { showMsg('msg', 'Kamera tidak dapat diakses: ' + err, false); });
   }
 
-  function submitScan() {
-    var noDokumen = document.getElementById('noDokumen').value.trim();
-    var aksi = document.getElementById('aksi').value;
-    var keterangan = document.getElementById('keterangan').value;
-
-    if (!noDokumen) {
-      showMsg('msg', 'Scan atau ketik No Dokumen terlebih dahulu.', false);
-      return;
-    }
-    if (!currentUser) {
-      showMsg('msg', 'Silakan login terlebih dahulu.', false);
-      return;
-    }
-
+  function submitScan(aksi) {
+    var noDokumen = $('noDokumen').value.trim();
+    if (!noDokumen) { showMsg('msg', 'Scan atau ketik No Dokumen terlebih dahulu.', false); return; }
+    if (!currentUser) { showMsg('msg', 'Silakan login terlebih dahulu.', false); return; }
     callApi('recordScan', {
-      noDokumen: noDokumen,
-      kodeUnit: currentUser.kodeUnit,
-      aksi: aksi,
-      pic: currentUser.pic,
-      keterangan: keterangan
+      noDokumen: noDokumen, kodeUnit: currentUser.kodeUnit, aksi: aksi,
+      pic: currentUser.pic, keterangan: $('keterangan').value
     }).then(function (res) {
       showMsg('msg', res.message, res.success);
-      if (res.success) {
-        document.getElementById('noDokumen').value = '';
-        document.getElementById('keterangan').value = '';
-      }
-    }).catch(function (err) {
-      showMsg('msg', 'Gagal terhubung ke server: ' + err.message, false);
-    });
+      if (res.success) { $('noDokumen').value = ''; $('keterangan').value = ''; }
+    }).catch(function (err) { showMsg('msg', 'Gagal terhubung ke server: ' + err.message, false); });
   }
 
-  // ---------- BUAT DOKUMEN (LENGKAP) ----------
-  function loadUnitsIntoForm() {
-    if (unitsLoaded) return;
-    callApi('getUnitList', {}).then(function (units) {
-      var sel = document.getElementById('f_unit');
-      sel.innerHTML = '';
-      (units || []).forEach(function (u) {
-        var opt = document.createElement('option');
-        opt.value = u.kode;
-        opt.textContent = u.kode + ' - ' + u.nama;
-        sel.appendChild(opt);
+  // ---------- BUAT DOKUMEN ----------
+  function onJenisChange() {
+    var j = $('f_jenis').value;
+    var isKK = j === 'Kas Kecil', isPJK = j === 'PJK';
+    $('kkFields').classList.toggle('hidden', !isKK);
+    $('umFields').classList.toggle('hidden', isKK);
+    $('pjkPick').classList.toggle('hidden', !isPJK);
+    $('pjkExtra').classList.toggle('hidden', !isPJK);
+    $('umDetailLabel').textContent = isPJK ? 'Detail Realisasi (PJK)' : 'Detail Item';
+    if (isPJK && !umList.length) loadUMList();
+    if (isKK && $('kkTable').rows.length < 2) addKKRow();
+    $('kkTtdName').textContent = $('k_createdBy').value || (currentUser && currentUser.pic) || '';
+    calcUM(); calcKK();
+  }
+
+  // --- PJK: ambil daftar Uang Muka ---
+  function loadUMList() {
+    callApi('getUangMukaList', {}).then(function (list) {
+      umList = Array.isArray(list) ? list : [];
+      var sel = $('f_noUM');
+      sel.innerHTML = '<option value="">-- pilih Nomor Uang Muka --</option>';
+      umList.forEach(function (u) {
+        var o = document.createElement('option');
+        o.value = u.noDokumen;
+        o.textContent = u.noDokumen + (u.hal ? ' - ' + u.hal : '');
+        sel.appendChild(o);
       });
-      if (currentUser && currentUser.kodeUnit) sel.value = currentUser.kodeUnit;
-      unitsLoaded = true;
-    });
+    }).catch(function () { showMsg('formMsg', 'Gagal memuat daftar Uang Muka.', false); });
   }
 
-  function addRow() {
-    var table = document.getElementById('detailTable');
-    var row = table.insertRow(-1);
+  function fillFromUM() {
+    var no = $('f_noUM').value;
+    var u = umList.filter(function (x) { return x.noDokumen === no; })[0];
+    if (!u) return;
+    $('f_accountId').value = u.accountId || $('f_accountId').value;
+    $('f_date').value = (u.date || '').substring(0, 10);
+    $('f_responsible').value = u.responsible || '';
+    $('f_partner').value = u.partner || '';
+    $('f_hal').value = u.hal || '';
+    $('f_totalUM').value = rp(Number(u.total) || 0);
+    $('f_totalUM').dataset.val = Number(u.total) || 0;
+    calcUM();
+  }
+
+  // --- Uang Muka / PPL / PJK: baris detail ---
+  function addUMRow() {
+    var row = $('umTable').insertRow(-1);
     row.innerHTML =
-      '<td><input type="text" class="acc"></td>' +
-      '<td><input type="text" class="ket"></td>' +
-      '<td><input type="number" class="tot"></td>' +
-      '<td><button type="button" class="small secondary" onclick="this.closest(\'tr\').remove()">Hapus</button></td>';
+      '<td><input type="text" class="acc"></td><td><input type="text" class="ket"></td>' +
+      '<td><input type="number" class="tot" oninput="calcUM()"></td>' +
+      '<td><button type="button" class="small secondary" onclick="this.closest(\'tr\').remove();calcUM()">X</button></td>';
   }
 
-  function submitDokumen() {
-    var details = [];
-    var rows = document.querySelectorAll('#detailTable tr');
-    for (var i = 1; i < rows.length; i++) {
-      var acc = rows[i].querySelector('.acc').value;
-      var ket = rows[i].querySelector('.ket').value;
-      var tot = rows[i].querySelector('.tot').value;
-      if (acc || ket || tot) details.push({ account: acc, keterangan: ket, total: tot });
-    }
+  function getUMTotal() {
+    var t = 0;
+    document.querySelectorAll('#umTable .tot').forEach(function (i) { t += Number(i.value) || 0; });
+    return t;
+  }
 
-    var form = {
-      bank: document.getElementById('f_bank').value,
-      date: document.getElementById('f_date').value,
-      noRekening: document.getElementById('f_noRekening').value,
-      namaPenerima: document.getElementById('f_namaPenerima').value,
-      partner: document.getElementById('f_partner').value,
-      responsible: document.getElementById('f_responsible').value,
-      unit: document.getElementById('f_unit').value,
-      pj: document.getElementById('f_pj').value,
-      approval2: document.getElementById('f_approval2').value,
-      details: details
-    };
+  // Total penentu TTD: PJK mengikuti total Uang Muka, lainnya total detail
+  function getBasisTotal() {
+    if ($('f_jenis').value === 'PJK') return Number($('f_totalUM').dataset.val) || getUMTotal();
+    return getUMTotal();
+  }
 
-    if (!form.unit) {
-      showMsg('formMsg', 'Pilih Unit Asal terlebih dahulu.', false);
-      return;
-    }
+  function buildTtd(total) {
+    var unit = { jabatan: 'Unit Peminta', nama: total >= BATAS ? (currentUser ? currentUser.pic : '') : '' };
+    var list = [unit, { jabatan: 'Manajer Akuntansi Keuangan', nama: TTD_MANAJER }, { jabatan: 'Direktur', nama: TTD_DIREKTUR }];
+    if (total >= BATAS) list.push({ jabatan: 'Direktur Utama', nama: TTD_DIRUT });
+    return list;
+  }
 
-    callApi('saveDokumen', form).then(function (res) {
-      if (!res.success) {
-        showMsg('formMsg', res.message || 'Gagal menyimpan dokumen.', false);
-        return;
-      }
-      document.getElementById('noDokResult').textContent = res.noDokumen;
-      printUrl = APPS_SCRIPT_URL + '?page=print&noDokumen=' + encodeURIComponent(res.noDokumen);
-      document.getElementById('formResult').classList.remove('hidden');
-      document.getElementById('formMsg').style.display = 'none';
-    }).catch(function (err) {
-      showMsg('formMsg', 'Gagal terhubung ke server: ' + err.message, false);
+  function calcUM() {
+    $('umTotal').textContent = rp(getUMTotal());
+    $('ttdPreview').innerHTML = buildTtd(getBasisTotal()).map(function (t) {
+      return '<div><b>' + esc(t.jabatan) + '</b><br><br>' +
+        (t.nama ? esc(t.nama) : '<i>(diisi manual)</i>') + '</div>';
+    }).join('');
+  }
+
+  // --- Kas Kecil ---
+  function addKKRow() {
+    var row = $('kkTable').insertRow(-1);
+    row.innerHTML =
+      '<td><input type="text" class="desc"></td>' +
+      '<td><input type="number" class="qty" value="1" min="0" oninput="calcKK()" style="width:50px"></td>' +
+      '<td><input type="number" class="price" min="0" oninput="calcKK()"></td>' +
+      '<td><select class="tax" onchange="calcKK()"><option value="0">0%</option><option value="11">11%</option></select></td>' +
+      '<td class="amt" style="text-align:right;white-space:nowrap;">0</td>' +
+      '<td><button type="button" class="small secondary" onclick="this.closest(\'tr\').remove();calcKK()">X</button></td>';
+  }
+
+  function calcKK() {
+    var total = 0;
+    document.querySelectorAll('#kkTable tr').forEach(function (r, i) {
+      if (i === 0) return;
+      var q = Number(r.querySelector('.qty').value) || 0, p = Number(r.querySelector('.price').value) || 0;
+      var tx = Number(r.querySelector('.tax').value) || 0;
+      var a = q * p * (1 + tx / 100);
+      r.querySelector('.amt').textContent = Math.round(a).toLocaleString('id-ID');
+      total += a;
     });
+    $('kkTotal').textContent = rp(total);
+    $('kkTtdName').textContent = $('k_createdBy').value || '';
+    return total;
+  }
+
+  // --- Simpan ---
+  function submitDokumen() {
+    var jenis = $('f_jenis').value, form;
+    if (!currentUser) { showMsg('formMsg', 'Silakan login terlebih dahulu.', false); return; }
+
+    if (jenis === 'Kas Kecil') {
+      var items = [];
+      document.querySelectorAll('#kkTable tr').forEach(function (r, i) {
+        if (i === 0) return;
+        var d = r.querySelector('.desc').value, q = Number(r.querySelector('.qty').value) || 0;
+        var p = Number(r.querySelector('.price').value) || 0, tx = Number(r.querySelector('.tax').value) || 0;
+        if (d || p) items.push({ deskripsi: d, quantity: q, unitPrice: p, tax: tx, amount: q * p * (1 + tx / 100) });
+      });
+      if (!items.length) { showMsg('formMsg', 'Isi minimal 1 baris rincian.', false); return; }
+      var total = calcKK();
+      form = {
+        jenis: jenis, unit: currentUser.kodeUnit, date: $('k_date').value,
+        namaKasKecil: $('k_nama').value, company: $('k_company').value, createdBy: $('k_createdBy').value,
+        details: items, total: total,
+        ttd: [{ jabatan: 'Created By', nama: $('k_createdBy').value }]
+      };
+    } else {
+      var details = [];
+      document.querySelectorAll('#umTable tr').forEach(function (r, i) {
+        if (i === 0) return;
+        var a = r.querySelector('.acc').value, k = r.querySelector('.ket').value, t = r.querySelector('.tot').value;
+        if (a || k || t) details.push({ account: a, keterangan: k, total: Number(t) || 0 });
+      });
+      if (!details.length) { showMsg('formMsg', 'Isi minimal 1 baris detail.', false); return; }
+      if (jenis === 'PJK' && !$('f_noUM').value) { showMsg('formMsg', 'Pilih Nomor Uang Muka terlebih dahulu.', false); return; }
+      var basis = getBasisTotal();
+      form = {
+        jenis: jenis, unit: currentUser.kodeUnit, accountId: $('f_accountId').value,
+        date: $('f_date').value, responsible: $('f_responsible').value, partner: $('f_partner').value,
+        hal: $('f_hal').value, details: details, total: getUMTotal(),
+        totalBasisTtd: basis, ttd: buildTtd(basis)
+      };
+      if (jenis === 'PJK') {
+        form.noUangMuka = $('f_noUM').value;
+        form.tanggalPjk = $('f_tglPjk').value;
+        form.keteranganPjk = $('f_ketPjk').value;
+        form.totalUangMuka = basis;
+      }
+    }
+
+    form.pic = currentUser.pic;
+    callApi('saveDokumen', form).then(function (res) {
+      if (!res.success) { showMsg('formMsg', res.message || 'Gagal menyimpan dokumen.', false); return; }
+      $('noDokResult').textContent = res.noDokumen;
+      printUrl = APPS_SCRIPT_URL + '?page=print&noDokumen=' + encodeURIComponent(res.noDokumen);
+      $('formResult').classList.remove('hidden');
+      $('formMsg').style.display = 'none';
+    }).catch(function (err) { showMsg('formMsg', 'Gagal terhubung ke server: ' + err.message, false); });
   }
 
   function resetForm() {
-    document.getElementById('formResult').classList.add('hidden');
-    ['f_bank', 'f_date', 'f_noRekening', 'f_namaPenerima', 'f_partner', 'f_responsible', 'f_pj', 'f_approval2']
-      .forEach(function (id) { document.getElementById(id).value = ''; });
-    document.getElementById('detailTable').querySelectorAll('tr:not(:first-child)').forEach(function (r) { r.remove(); });
-    addRow();
+    $('formResult').classList.add('hidden');
+    ['f_date','f_responsible','f_partner','f_hal','f_tglPjk','f_totalUM','f_ketPjk','k_date'].forEach(function (id) { $(id).value = ''; });
+    $('f_totalUM').dataset.val = 0;
+    $('f_noUM').value = '';
+    document.querySelectorAll('#umTable tr:not(:first-child), #kkTable tr:not(:first-child)').forEach(function (r) { r.remove(); });
+    addUMRow();
+    if ($('f_jenis').value === 'Kas Kecil') addKKRow();
+    calcUM(); calcKK();
   }
 
-  // ---------- GENERATE BARCODE CEPAT ----------
+  // ---------- BARCODE CEPAT ----------
   function generateBarcode() {
-    var noDokumen = document.getElementById('bc_noDokumen').value.trim();
-    var judul = document.getElementById('bc_judul').value.trim();
-
-    if (!judul) {
-      showMsg('barcodeMsg', 'Judul wajib diisi.', false);
-      return;
-    }
-    if (!currentUser) {
-      showMsg('barcodeMsg', 'Silakan login terlebih dahulu.', false);
-      return;
-    }
-
-    callApi('saveBarcodeCepat', {
-      noDokumen: noDokumen,
-      judul: judul,
-      unit: currentUser.kodeUnit,
-      pic: currentUser.pic
-    }).then(function (res) {
-      if (!res.success) {
-        showMsg('barcodeMsg', res.message || 'Gagal generate barcode.', false);
-        return;
-      }
-      document.getElementById('bcNoResult').textContent = res.noDokumen;
-      document.getElementById('bcJudulResult').textContent = judul;
-      document.getElementById('bcQrImg').src =
-        'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(res.noDokumen);
-      document.getElementById('barcodeResult').classList.remove('hidden');
-      document.getElementById('barcodeMsg').style.display = 'none';
-    }).catch(function (err) {
-      showMsg('barcodeMsg', 'Gagal terhubung ke server: ' + err.message, false);
-    });
+    var noDokumen = $('bc_noDokumen').value.trim(), judul = $('bc_judul').value.trim();
+    if (!judul) { showMsg('barcodeMsg', 'Judul wajib diisi.', false); return; }
+    if (!currentUser) { showMsg('barcodeMsg', 'Silakan login terlebih dahulu.', false); return; }
+    callApi('saveBarcodeCepat', { noDokumen: noDokumen, judul: judul, unit: currentUser.kodeUnit, pic: currentUser.pic })
+    .then(function (res) {
+      if (!res.success) { showMsg('barcodeMsg', res.message || 'Gagal generate barcode.', false); return; }
+      $('bcNoResult').textContent = res.noDokumen;
+      $('bcJudulResult').textContent = judul;
+      $('bcQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(res.noDokumen);
+      $('barcodeResult').classList.remove('hidden');
+      $('barcodeMsg').style.display = 'none';
+    }).catch(function (err) { showMsg('barcodeMsg', 'Gagal terhubung ke server: ' + err.message, false); });
   }
 
   function resetBarcode() {
-    document.getElementById('bc_noDokumen').value = '';
-    document.getElementById('bc_judul').value = '';
-    document.getElementById('barcodeResult').classList.add('hidden');
+    $('bc_noDokumen').value = ''; $('bc_judul').value = '';
+    $('barcodeResult').classList.add('hidden');
   }
 
-  // ---------- LACAK DOKUMEN ----------
+  // ---------- LACAK ----------
   function trackDokumen() {
-    var no = document.getElementById('tr_noDokumen').value.trim();
+    var no = $('tr_noDokumen').value.trim();
     if (!no) return;
-
     callApi('searchDokumen', { noDokumen: no }).then(function (res) {
-      if (!res.success) {
-        showMsg('trackMsg', res.message, false);
-        document.getElementById('trackResult').classList.add('hidden');
-        return;
-      }
-      document.getElementById('trackMsg').style.display = 'none';
-
+      if (!res.success) { showMsg('trackMsg', res.message, false); $('trackResult').classList.add('hidden'); return; }
+      $('trackMsg').style.display = 'none';
       var d = res.data;
-      document.getElementById('tr_judul').textContent = d.dok['Judul'] || d.dok['Nama Penerima'] || '-';
-      document.getElementById('tr_status').textContent = d.dok['Status'] || '-';
-      document.getElementById('tr_lokasi').textContent = d.dok['Lokasi Saat Ini'] || '-';
-
-      var tbody = document.getElementById('tr_historyBody');
+      $('tr_judul').textContent = d.dok['Judul'] || d.dok['Nama Penerima'] || '-';
+      $('tr_status').textContent = d.dok['Status'] || '-';
+      $('tr_lokasi').textContent = d.dok['Lokasi Saat Ini'] || '-';
+      var tbody = $('tr_historyBody');
       tbody.innerHTML = '';
       (d.history || []).forEach(function (h) {
         var waktu = new Date(h.Timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
         var tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td>' + waktu + '</td>' +
-          '<td>' + h['Nama Unit'] + '</td>' +
-          '<td>' + h['Aksi'] + '</td>' +
-          '<td>' + h['PIC'] + '</td>' +
-          '<td>' + (h['Keterangan'] || '-') + '</td>';
+        tr.innerHTML = '<td>' + esc(waktu) + '</td><td>' + esc(h['Nama Unit']) + '</td><td>' + esc(h['Aksi']) +
+          '</td><td>' + esc(h['PIC']) + '</td><td>' + esc(h['Keterangan'] || '-') + '</td>';
         tbody.appendChild(tr);
       });
-
-      document.getElementById('trackResult').classList.remove('hidden');
-    }).catch(function (err) {
-      showMsg('trackMsg', 'Gagal terhubung ke server: ' + err.message, false);
-    });
+      $('trackResult').classList.remove('hidden');
+    }).catch(function (err) { showMsg('trackMsg', 'Gagal terhubung ke server: ' + err.message, false); });
   }
 
-  // ---------- HELPERS ----------
   function showMsg(elId, text, ok) {
-    var el = document.getElementById(elId);
+    var el = $(elId);
     el.textContent = text;
     el.className = 'msgbox ' + (ok ? 'ok' : 'err');
     el.style.display = 'block';
   }
 
-  // auto-login kalau device ini sudah pernah login sebelumnya
+  $('k_createdBy').addEventListener('input', calcKK);
+
   (function initFromStorage() {
     var saved = localStorage.getItem('ekspedisi_user');
-    if (saved) {
-      currentUser = JSON.parse(saved);
-      showMain();
-    }
+    if (saved) { currentUser = JSON.parse(saved); showMain(); }
   })();
 
-  addRow();
+  addUMRow();
 </script>
-
 </body>
 </html>
